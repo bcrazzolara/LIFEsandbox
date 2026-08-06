@@ -1,7 +1,6 @@
-"""Train ConvNext to regress the 6 SBW parameters from the signal image."""
+"""Train the ViT to regress the 6 SBW parameters from the signal image."""
 import numpy as np
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
 from sbw import build_model, norm_targets, denorm_targets, prep_image, NAMES
@@ -11,6 +10,11 @@ EPOCHS = 50
 BATCH = 64 * max(1, NGPU)   # scale batch across GPUs
 LR = 3e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Up-weight the faint planet params (idx1, idx2, Amplitude_planet); normalized
+# to mean 1 so the loss scale (and thus LR) stays comparable.
+WEIGHTS = torch.tensor([2., 2., 3., 1., 1., 1.])
+WEIGHTS = (WEIGHTS / WEIGHTS.mean()).to(DEVICE)
 
 
 class SBWDataset(Dataset):
@@ -49,22 +53,24 @@ def main():
         for x, y in tr:
             x, y = x.to(DEVICE), y.to(DEVICE)
             opt.zero_grad()
-            loss = F.mse_loss(model(x), y)
+            loss = (WEIGHTS * (model(x) - y) ** 2).mean()   # planet-weighted MSE
             loss.backward()
             opt.step()
             tot += loss.item() * len(x)
         sched.step()
-        print(f"epoch {ep + 1}/{EPOCHS}  train_mse={tot / len(tr.dataset):.4f}")
         core = model.module if NGPU > 1 else model
         torch.save({"model": core.state_dict(), "mean": mean, "std": std},
                    "model.pt")  # checkpoint every epoch
+        mae = evaluate(model, te)
+        line = "  ".join(f"{n}={m:.3g}" for n, m in zip(NAMES, mae))
+        print(f"epoch {ep + 1}/{EPOCHS}  train={tot / len(tr.dataset):.4f} | {line}")
 
-    evaluate(model, te)
     print("done; model.pt holds the last epoch")
 
 
 @torch.no_grad()
 def evaluate(model, loader):
+    """Return per-param test MAE in real units."""
     model.eval()
     preds, trues = [], []
     for x, y in loader:
@@ -72,10 +78,7 @@ def evaluate(model, loader):
         trues.append(y.numpy())
     pred = denorm_targets(np.concatenate(preds))
     true = denorm_targets(np.concatenate(trues))
-    mae = np.abs(pred - true).mean(0)
-    print("test MAE (real units):")
-    for name, m in zip(NAMES, mae):
-        print(f"  {name:18s} {m:.3f}")
+    return np.abs(pred - true).mean(0)
 
 
 if __name__ == "__main__":

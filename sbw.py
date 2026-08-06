@@ -44,7 +44,7 @@ PARAMS = [
     # its 180-deg reflection through the star, so we keep one representative.
     ("idx2", 0, Npix // 2, True),
     ("Amplitude_planet", 100.0, 5000.0, False),
-    ("Amplitude_exozodi", 10.0, 1000.0, False),
+    ("Amplitude_exozodi", 10.0, 100.0, False),
     ("inc", 0.0, np.pi / 2, False),
     ("phi", 0.0, np.pi, False),
 ]
@@ -59,7 +59,7 @@ def sample_params(rng):
         rng.integers(0, Npix),
         rng.integers(0, Npix // 2),   # half-plane: removes the SBW reflection degeneracy
         rng.uniform(100.0, 5000.0),
-        rng.uniform(10.0, 1000.0),
+        rng.uniform(10.0, 100.0),
         rng.uniform(0.0, np.pi / 2),
         rng.uniform(0.0, np.pi),
     ], dtype=np.float64)
@@ -106,7 +106,7 @@ class ViT(nn.Module):
 
     def __init__(self, dim=192, depth=6, heads=6, n_out=len(PARAMS)):
         super().__init__()
-        self.proj = nn.Conv2d(1, dim, kernel_size=PATCH, stride=PATCH)  # patch embed
+        self.proj = nn.Conv2d(IN_CH, dim, kernel_size=PATCH, stride=PATCH)  # patch embed
         self.gh, self.gw = H_PAD // PATCH, N // PATCH
         ntok = self.gh * self.gw
         self.cls = nn.Parameter(torch.zeros(1, 1, dim))
@@ -132,9 +132,20 @@ def build_model():
     return ViT()
 
 
+IN_CH = 2  # channel 0: raw (absolute scale); channel 1: high-pass (structure)
+
+
 def prep_image(sig, mean, std):
-    """Raw (NL, N) signal -> normalized (1, NL, N) tensor for the model."""
-    return torch.as_tensor((sig - mean) / std, dtype=torch.float32)[None]
+    """(NL, N) signal -> 2-channel (IN_CH, NL, N) tensor.
+
+    ch0 keeps absolute brightness (-> Amplitude_exozodi); ch1 removes the large
+    per-image pedestal so the faint planet ripple isn't swamped. Both use only
+    the observable signal itself.
+    """
+    sig = np.asarray(sig, dtype=np.float64)
+    ch0 = (sig - mean) / std
+    ch1 = (sig - sig.mean()) / std
+    return torch.as_tensor(np.stack([ch0, ch1]), dtype=torch.float32)
 
 
 def demo():
@@ -153,7 +164,7 @@ def demo():
     # normalization round-trips
     assert np.allclose(denorm_targets(norm_targets(p)), p)
     x = prep_image(sig, sig.mean(), sig.std())
-    assert x.shape == (1, NL, N), x.shape
+    assert x.shape == (IN_CH, NL, N), x.shape
     assert build_model()(x[None]).shape == (1, len(PARAMS))
     print("sbw.demo OK  sig", sig.shape, " T", T_flat.shape)
 
