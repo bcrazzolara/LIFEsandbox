@@ -40,7 +40,7 @@ inst = inst = Instrument(
 
     # Mirror 
     aperture_diameter=0.25 * u.m,
-    mirror_temperature=150 * u.K,  
+    mirror_temperature=160 * u.K,  
     mirror_emissivity=0.06,
     mirror_throughput=0.94,
 
@@ -55,7 +55,7 @@ inst = inst = Instrument(
     # https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph/nirspec-instrumentation/nirspec-detectors/nirspec-detector-performance#gsc.tab=0
     # https://jwst-docs.stsci.edu/jwst-near-infrared-spectrograph/nirspec-instrumentation/nirspec-detectors#gsc.tab=0
     quantum_efficiency=0.7,
-    detector_temperature=70 * u.K,          # NIRSpec SCAs at 42.8K
+    detector_temperature=80 * u.K,          # NIRSpec SCAs at 42.8K
     detector_wavelength_min=0.6 * u.um,     # NIRSpec
     detector_wavelength_max = 5.3 * u.um,   # NIRSpec
     pixel_size=18e-6 * u.m,                 # NIRSpec
@@ -67,8 +67,8 @@ inst = inst = Instrument(
 # User the predefined observation for the LIFE baseline design
 obs = Observation(
     solar_ecliptic_latitude=0 * u.deg,  # Alternatively: '0 deg' or 0
-    total_integration_time=10*3600* u.s,  # Alternatively: '1 d' or 86400
-    detector_integration_time='60 s',  # Alternatively: '600 s' or 600
-    modulation_period=10*3600* u.s,  # Alternatively: '1 d' or 86400
-    nulling_baseline=0.5
+    total_integration_time=5*3600* u.s,  # Alternatively: '1 d' or 86400
+    detector_integration_time=60* u.s,  # Alternatively: '600 s' or 600
+    modulation_period=5*3600* u.s,  # Alternatively: '1 d' or 86400
+    nulling_baseline=0.75
 )
