@@ -1,4 +1,5 @@
 import contextlib
+import gc
 import importlib.util
 import io
 import json
@@ -66,7 +67,8 @@ DIT = 2 * 60                # detector integration time [s] -> T_OBS / DIT = 60 
 # --- Monte Carlo ---
 N_REALISATIONS = 10          # noise realisations per (planet, setup) (~45 s each on CPU, much less on GPU)
 BASE_SEED = 1000            # realisation i of every (planet, setup) uses seed BASE_SEED + i
-MAX_POS_OFFSET_SIGMA = 5    # free fits further than this from +/- the true position count as failed
+FORCE_RECOMPUTE = False      # True: delete cached realisations and recompute all; False: reuse finished runs
+MAX_POS_OFFSET_SIGMA = 5   # free fits further than this from +/- the true position count as failed
 
 # --- Simulation ---
 GRID_SIZE = 50              # spatial grid of the extended sources and the position-search templates
@@ -86,9 +88,11 @@ COMBINED_DIR.mkdir(parents=True, exist_ok=True)
 
 # planet name -> config file (relative to lifesim_plots), planet variable in it, optional replacement spectrum
 TARGETS = {
+    
     'PDS70 b': dict(config='setup/spectra/PDS70/pds_70.py', planet='pds_70_b'),
     'PDS70 c': dict(config='setup/spectra/PDS70/pds_70.py', planet='pds_70_c'),
     'HR 8799 d': dict(config='setup/spectra/HR8799/hr_8799.py', planet='hr_8799_d'),
+    '51 Eri b': dict(config='setup/spectra/51Eri/_51_eri.py', planet='_51_eri_b'),
     'HR 8799 e': dict(config='setup/spectra/HR8799/hr_8799.py', planet='hr_8799_e'),
     'bet Pic b': dict(config='setup/spectra/BetaPic/bet_pic.py', planet='bet_pic_b'),
     'HR 8799 c': dict(config='setup/spectra/HR8799/hr_8799.py', planet='hr_8799_c'),
@@ -101,80 +105,51 @@ TARGETS = {
 # =============== INSTRUMENT =================
 # name -> D [m], B [m], T_mirror / T_instr / T_det [K], null depth, dark current [e-/s/pixel]
 
+
+
+
+NULL_DEPTH = 1e-4
+'''
 SETUPS = {
-    'Large cold 5':      dict(D=0.20,  B=2.0,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Large cold 4':      dict(D=0.20,  B=2.0,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Large cold 3':      dict(D=0.20,  B=2.0,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Large warm 5':      dict(D=0.20,  B=2.0,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-5, dark_current=1.0),
-    'Large warm 4':      dict(D=0.20,  B=2.0,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-4, dark_current=1.0),
-    'Large warm 3':      dict(D=0.20,  B=2.0,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-3, dark_current=1.0),
+    'Large cold':      dict(D=0.20,  B=2.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Large warm':      dict(D=0.20,  B=2.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
 
-    'Medium cold 5':     dict(D=0.15,  B=1.5,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Medium cold 4':     dict(D=0.15,  B=1.5,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Medium cold 3':     dict(D=0.15,  B=1.5,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Medium warm 5':     dict(D=0.15,  B=1.5,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-5, dark_current=1.0),
-    'Medium warm 4':     dict(D=0.15,  B=1.5,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-4, dark_current=1.0),
-    'Medium warm 3':     dict(D=0.15,  B=1.5,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-3, dark_current=1.0),
+    'Medium cold':     dict(D=0.15,  B=1.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Medium warm':     dict(D=0.15,  B=1.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
 
-    'Prototype cold 5':  dict(D=0.10,  B=1.0,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Prototype cold 4':  dict(D=0.10,  B=1.0,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Prototype cold 3':  dict(D=0.10,  B=1.0,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Prototype warm 5':  dict(D=0.10,  B=1.0,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-5, dark_current=1.0),
-    'Prototype warm 4':  dict(D=0.10,  B=1.0,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-4, dark_current=1.0),
-    'Prototype warm 3':  dict(D=0.10,  B=1.0,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-3, dark_current=1.0),
+    'Prototype cold':  dict(D=0.10,  B=1.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Prototype warm':  dict(D=0.10,  B=1.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    #'Prototype warm 5':  dict(D=0.10,  B=1.0,  T_mirror=145, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 
-    'Small cold 5':      dict(D=0.075, B=0.75, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Small cold 4':      dict(D=0.075, B=0.75, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Small cold 3':      dict(D=0.075, B=0.75, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Small warm 5':      dict(D=0.075, B=0.75, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-5, dark_current=1.0),
-    'Small warm 4':      dict(D=0.075, B=0.75, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-4, dark_current=1.0),
-    'Small warm 3':      dict(D=0.075, B=0.75, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-3, dark_current=1.0),
+    'Small cold':      dict(D=0.075, B=0.75, T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Small warm':      dict(D=0.075, B=0.75, T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    #'Small warm 5':      dict(D=0.075, B=0.75, T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 
-    'Short cold 5':      dict(D=0.05,  B=0.5,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Short cold 4':      dict(D=0.05,  B=0.5,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Short cold 3':      dict(D=0.05,  B=0.5,  T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Short warm 5':      dict(D=0.05,  B=0.5,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-5, dark_current=1.0),
-    'Short warm 4':      dict(D=0.05,  B=0.5,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-4, dark_current=1.0),
-    'Short warm 3':      dict(D=0.05,  B=0.5,  T_mirror=160, T_instr=120, T_det=80, null_depth=1e-3, dark_current=1.0),
+    'Short cold':      dict(D=0.05,  B=0.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Short warm':      dict(D=0.05,  B=0.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    #'Short hot 5':      dict(D=0.05,  B=0.5,  T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 }
 '''
 SETUPS = {
-    'Large cold 5':       dict(D=0.20, B=2.0, T_mirror=100, T_instr=80, T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Large warm 5':       dict(D=0.20, B=2.0, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-5, dark_current=1.0),
-    'Large cold 4':       dict(D=0.20, B=2.0, T_mirror=100, T_instr=80, T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Large warm 4':       dict(D=0.20, B=2.0, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-4, dark_current=1.0),
-    'Large cold 3':       dict(D=0.20, B=2.0, T_mirror=100, T_instr=80, T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Large warm 3':       dict(D=0.20, B=2.0, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-3, dark_current=1.0),
+    'Large cold':      dict(D=0.20,  B=2.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Large warm':      dict(D=0.20,  B=2.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
 
-    'Medium cold 5':     dict(D=0.15, B=1.5, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Medium warm 5':       dict(D=0.15, B=1.5, T_mirror=160,  T_instr=120,  T_det=80, null_depth=1e-5, dark_current=1),
-    'Medium cold 4':     dict(D=0.15, B=1.5, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Medium warm 4':       dict(D=0.15, B=1.5, T_mirror=160,  T_instr=120,  T_det=80, null_depth=1e-4, dark_current=1),
-    'Medium cold 3':     dict(D=0.15, B=1.5, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Medium warm 3':       dict(D=0.15, B=1.5, T_mirror=160,  T_instr=120,  T_det=80, null_depth=1e-3, dark_current=1),
+    'Medium cold':     dict(D=0.15,  B=1.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Medium warm':     dict(D=0.15,  B=1.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
 
-    'Prototype cold 5':       dict(D=0.1, B=1.0, T_mirror=100, T_instr=80, T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Prototype warm 5':       dict(D=0.1, B=1.0, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-5, dark_current=1),
-    'Prototype cold 4':       dict(D=0.1, B=1.0, T_mirror=100, T_instr=80, T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Prototype warm 4':       dict(D=0.1, B=1.0, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-4, dark_current=1),
-    'Prototype cold 3':       dict(D=0.1, B=1.0, T_mirror=100, T_instr=80, T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Prototype warm 3':       dict(D=0.1, B=1.0, T_mirror=160, T_instr=120, T_det=80, null_depth=1e-3, dark_current=1),
-    
-    'Small cold 5':      dict(D=0.075, B=0.75, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Small warm 5':      dict(D=0.075, B=0.75, T_mirror=160, T_instr=120,  T_det=80, null_depth=1e-5, dark_current=1.),
-    'Small cold 4':      dict(D=0.075, B=0.75, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Small warm 4':      dict(D=0.075, B=0.75, T_mirror=160, T_instr=120,  T_det=80, null_depth=1e-4, dark_current=1.),
-    'Small cold 3':      dict(D=0.075, B=0.75, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Small warm 3':      dict(D=0.075, B=0.75, T_mirror=160, T_instr=120,  T_det=80, null_depth=1e-3, dark_current=1.),
+    'Prototype cold':  dict(D=0.1,  B=1.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Prototype warm':  dict(D=0.1,  B=1.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    #'Prototype warm 5':  dict(D=0.10,  B=1.0,  T_mirror=145, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 
-    'Short cold 5':       dict(D=0.05, B=0.5, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-5, dark_current=0.1),
-    'Short warm 5':       dict(D=0.05, B=0.5, T_mirror=160, T_instr=120,  T_det=80, null_depth=1e-5, dark_current=1.),
-    'Short cold 4':       dict(D=0.05, B=0.5, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-4, dark_current=0.1),
-    'Short warm 4':       dict(D=0.05, B=0.5, T_mirror=160, T_instr=120,  T_det=80, null_depth=1e-4, dark_current=1.),
-    'Short cold 3':       dict(D=0.05, B=0.5, T_mirror=100, T_instr=80,  T_det=60, null_depth=1e-3, dark_current=0.1),
-    'Short warm 3':       dict(D=0.05, B=0.5, T_mirror=160, T_instr=120,  T_det=80, null_depth=1e-3, dark_current=1.), 
+    'Small cold':      dict(D=0.075, B=0.75, T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Small warm':      dict(D=0.075, B=0.75, T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    #'Small warm 5':      dict(D=0.075, B=0.75, T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
+
+    'Short cold':      dict(D=0.05,  B=0.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'Short warm':      dict(D=0.05,  B=0.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    #'Short hot 5':      dict(D=0.05,  B=0.5,  T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 }
-'''
+
 def load_target(name):
     # Executes the config and returns its star, exozodi, disks and the planet (with `sed_file` if given)
     target = TARGETS[name]
@@ -472,19 +447,21 @@ def run_realisation(prep, seed):
 
 def run_key(target, setup, seed):
     return json.dumps(dict(target=target, setup=SETUPS[setup], seed=seed, t_obs=T_OBS, t_mod=T_MOD, dit=DIT,
-                           grid_size=GRID_SIZE, version=3), sort_keys=True)
+                           grid_size=GRID_SIZE, version=4), sort_keys=True)
 
 
 done, PREP = {}, {}
 for target_name, target in LOADED.items():
-    if target['results_file'].exists():
+    if FORCE_RECOMPUTE:
+        target['results_file'].unlink(missing_ok=True)   # start from an empty file
+    elif target['results_file'].exists():
         for line in target['results_file'].read_text().splitlines():
             record = json.loads(line)
             done[record['key']] = record
 
     for setup_name, params in SETUPS.items():
         # The setup is prepared even if all realisations are on file: it gives the Fisher reference
-        prep = PREP[target_name, setup_name] = quiet(prepare_setup, target, params)
+        prep = quiet(prepare_setup, target, params)
         status = fov_status(prep)
         todo = [BASE_SEED + i for i in range(N_REALISATIONS)
                 if run_key(target_name, setup_name, BASE_SEED + i) not in done] if status == 'ok' else []
@@ -503,6 +480,14 @@ for target_name, target in LOADED.items():
         if todo:
             print()
 
+        # Keep only what the summary needs; the pipeline (templates, PHRINGE caches, data) is several 100 MB
+        PREP[target_name, setup_name] = dict(sed_true=prep['sed_true'], sep_mas=prep['sep_mas'], in_fov=prep['in_fov'],
+                                             status=status, fisher=fisher_snr(prep))
+        del prep
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
 
 
 def snr_from_q(q, n_wl):
@@ -518,8 +503,8 @@ def snr_from_q(q, n_wl):
 
 rows, per_realisation, n_failed = [], [], {}
 for (target_name, setup_name), prep in PREP.items():
-    status = fov_status(prep)
-    fisher = fisher_snr(prep)
+    status = prep['status']
+    fisher = prep['fisher']
     n_wl = len(prep['sed_true'])
     records = [done[run_key(target_name, setup_name, BASE_SEED + i)] for i in range(N_REALISATIONS)] \
         if status == 'ok' else []
@@ -528,18 +513,24 @@ for (target_name, setup_name), prep in PREP.items():
     if any(failed):
         n_failed[target_name, setup_name] = failed
     for case in ('known', 'marg'):
-        # marginalised: leave out free fits on a wrong peak, judged on the fit of each pass
-        located = lambda r, key: case == 'known' or r[key] <= MAX_POS_OFFSET_SIGMA
-        used = [r for r in records if located(r, 'pos_offset_sigma_p2')]
-        q = [r[f'q_{case}'] for r in used]
-        q_proto = [r[f'proto_q_{case}'] for r in records if located(r, 'pos_offset_sigma')]
+        # A fit that did not locate the planet (marginalised: wrong peak, judged on the fit of each pass) or returned
+        # no covariance is not a detection. Leaving it out would only keep the realisations where the noise happened
+        # to look like the planet and bias the SNR up; instead it enters with q = n_wl, i.e. SNR 0 after bias correction.
+        located = lambda r, key, q_key: (case == 'known' or r[key] <= MAX_POS_OFFSET_SIGMA) and np.isfinite(r[q_key])
+        used = [r for r in records if located(r, 'pos_offset_sigma_p2', f'q_{case}')]
+        q = [r[f'q_{case}'] if located(r, 'pos_offset_sigma_p2', f'q_{case}') else n_wl for r in records]
+        q_proto = [r[f'proto_q_{case}'] if located(r, 'pos_offset_sigma', f'proto_q_{case}') else n_wl
+                   for r in records]
+        # the uncorrected diagnostics stay averages over the located fits only
+        q_used = [r[f'q_{case}'] for r in used]
+        q_proto_used = [r[f'proto_q_{case}'] for r in records if located(r, 'pos_offset_sigma', f'proto_q_{case}')]
         snr, err, scatter = snr_from_q(q, n_wl)
         rows.append(dict(
-            target=target_name, setup=setup_name, case=case, status=status, n_used=int(np.isfinite(q).sum()),
+            target=target_name, setup=setup_name, case=case, status=status, n_used=len(used),
             SNR_fisher=fisher[case],
-            proto_reported=np.nanmean(np.sqrt(q_proto)) if q_proto else np.nan,
+            proto_reported=np.mean(np.sqrt(q_proto_used)) if q_proto_used else np.nan,
             proto_corrected=snr_from_q(q_proto, n_wl)[0],
-            SNR_uncorrected=np.nanmean(np.sqrt(q)) if q else np.nan,
+            SNR_uncorrected=np.mean(np.sqrt(q_used)) if q_used else np.nan,
             SNR=snr, SNR_err=err, SNR_scatter=scatter,
             SNR_true_sed=np.sqrt(np.nanmean([r[f'q_true_{case}'] for r in used])) if used else np.nan,
         ))
@@ -570,7 +561,7 @@ ESTIMATE_LABELS = {'SNR': 'pass 2, bias-corrected', 'SNR_uncorrected': 'pass 2, 
 
 plt.rcParams.update({'savefig.dpi': 300})
 names = list(SETUPS)
-planets = list(TARGETS)
+planets = sorted(TARGETS, key=lambda t: PREP[t, names[0]]['sep_mas'])    # smallest angular separation on the left
 SETUP_LABELS = {n: f"{n}\nD = {p['D']:g} m, B = {p['B']:g} m\n"
                    f"{p['T_mirror']:g}/{p['T_instr']:g}/{p['T_det']:g} K\n"
                    f"null {p['null_depth']:.0e}, dark {p['dark_current']:g}"
@@ -583,6 +574,12 @@ err_table = rows.pivot(index='setup', columns='target', values='SNR_scatter').lo
     if ESTIMATE == 'SNR' else snr_table * np.nan
 status_table = rows.pivot(index='setup', columns='target', values='status').loc[names, planets]
 sep_mas = {t: PREP[t, names[0]]['sep_mas'] for t in planets}
+# realisations in which the single observation reaches the detection threshold (failed fits count as SNR 0)
+realisations = pd.DataFrame(per_realisation)
+realisations = realisations[realisations.case == CASE]
+n_above = (realisations.assign(above=realisations.snr >= SNR_DETECTION)
+           .pivot_table(index='setup', columns='target', values='above', aggfunc='sum')
+           .reindex(index=names, columns=planets))
 
 values = snr_table.where(status_table == 'ok').astype(float).values
 sigma_snr = err_table.where(status_table == 'ok').astype(float).values
@@ -591,7 +588,7 @@ sigma_snr = err_table.where(status_table == 'ok').astype(float).values
 detected = np.nan_to_num(values - SIGMA_SNR_DETECTION * sigma_snr, nan=0) >= SNR_DETECTION      # outside the FOV counts as not detected
 n_detected = detected.sum(axis=1)
 
-fig = plt.figure(figsize=(2.1 * len(planets) + 4, 0.85 * len(names) + 2.6), layout='constrained')
+fig = plt.figure(figsize=( len(planets) + 4, 0.85 * len(names) + 2.6), layout='constrained')
 grid = fig.add_gridspec(2, 2, width_ratios=[0.5, len(planets)], height_ratios=[len(names), 0.5])
 ax_count, ax, cax = fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1]), fig.add_subplot(grid[1, 1])
 
@@ -609,6 +606,7 @@ for (row, col), value in np.ndenumerate(values):
         text = f'{value:.0f}' if value >= 10 else f'{value:.1f}'
         if np.isfinite(err):
             text += f'\n'  + rf'$\pm$ {err:.1f}'
+        text += f'\n{n_above.values[row, col]:.0f}/{N_REALISATIONS} ≥ {SNR_DETECTION:g}'
         ax.text(col, row, text, ha='center', va='center', fontsize=9,
                 color='white' if norm(value) > 0.6 else 'black')
     else:
@@ -619,7 +617,7 @@ ax.set_yticks([])
 ax.xaxis.tick_top()
 
 # --- Detections per setup ---
-ax_count.imshow(n_detected[:, None], vmin=-0.5, cmap='magma',  aspect='auto') # vmin=-0.5, vmax=len(planets) + 0.5,
+ax_count.imshow(n_detected[:, None], vmin=-0.5, vmax = len(planets) + 0.5, cmap='magma',  aspect='auto') # vmin=-0.5, vmax=len(planets) + 0.5,
 for row, n in enumerate(n_detected):
     ax_count.text(0, row, f'{n} ', ha='center', va='center', fontsize=10, fontweight='bold',
                   color='white' if n / len(planets) < 0.5 else 'black')
@@ -645,7 +643,9 @@ colorbar.set_label(f'bulk SNR after {T_OBS / 3600:g} h ({CASE_LABELS[CASE]}); re
                    fontsize=9)
 cax.axvline(SNR_DETECTION, color='red', lw=4)
 
-fig.suptitle(f'SNR, {CASE_LABELS[CASE]}, {ESTIMATE_LABELS[ESTIMATE]} ({N_REALISATIONS} realisations each)',
+fig.suptitle(f'SNR, {CASE_LABELS[CASE]}, {ESTIMATE_LABELS[ESTIMATE]} ({N_REALISATIONS} realisations each; '
+             f'fits that miss the planet count as SNR 0)\n'
+             rf'cell: SNR $\pm$ scatter of a single observation, number of observations with SNR ≥ {SNR_DETECTION:g}',
              fontsize=10)
 fig.savefig(COMBINED_DIR / f'snr_heatmap_{CASE}_{ESTIMATE}.png')#, transparent=True)
 plt.show()
