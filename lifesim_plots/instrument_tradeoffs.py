@@ -72,7 +72,7 @@ MAX_POS_OFFSET_SIGMA = 5   # free fits further than this from +/- the true posit
 
 # --- Simulation ---
 GRID_SIZE = 50              # spatial grid of the extended sources and the position-search templates
-GPU_INDEX = 2            # e.g. 2 on the GPU machine; None -> CPU
+GPU_INDEX = 3            # e.g. 2 on the GPU machine; None -> CPU
 
 # --- Output ---
 # Per planet, next to its spectrum (as in the prototype): <spectrum folder>/setup_snr/realisations_<planet>.jsonl
@@ -88,7 +88,7 @@ COMBINED_DIR.mkdir(parents=True, exist_ok=True)
 
 # planet name -> config file (relative to lifesim_plots), planet variable in it, optional replacement spectrum
 TARGETS = {
-    
+    'AB Pic b': dict(config='setup/spectra/ABPic/ab_pic.py', planet='ab_pic_b'),
     'PDS70 b': dict(config='setup/spectra/PDS70/pds_70.py', planet='pds_70_b'),
     'PDS70 c': dict(config='setup/spectra/PDS70/pds_70.py', planet='pds_70_c'),
     'HR 8799 d': dict(config='setup/spectra/HR8799/hr_8799.py', planet='hr_8799_d'),
@@ -100,6 +100,11 @@ TARGETS = {
     'HR 8799 b': dict(config='setup/spectra/HR8799/hr_8799.py', planet='hr_8799_b'),
     'DH Tau b': dict(config='setup/spectra/DHTau/dh_tau.py', planet='dh_tau_b'),
     'HD 106906 b': dict(config='setup/spectra/HD106906/hd_106906.py', planet='hd_106906_b'),
+    'HD 4113 C': dict(config='setup/spectra/HD4113/hd_4113.py', planet='hd_4113_c'),
+    'HD 95086 b': dict(config='setup/spectra/HD95086/hd_95086.py', planet='hd_95086_b'),
+    'GJ 504 b': dict(config='setup/spectra/GJ504/gj_504.py', planet='gj_504_b'),
+    'HIP 65426 b': dict(config='setup/spectra/HIP65426/hip_65426.py', planet='hip_65426_b'),
+    '2MASS b': dict(config='setup/spectra/2MASS/_2mass_j12073346_3932539.py', planet='_2mass_j12073346_3932539_b'),
 }
 
 # =============== INSTRUMENT =================
@@ -112,43 +117,45 @@ NULL_DEPTH = 1e-4
 '''
 SETUPS = {
     'Large cold':      dict(D=0.20,  B=2.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Large warm':      dict(D=0.20,  B=2.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    'Large warm':      dict(D=0.20,  B=2.0,  T_mirror=140, T_instr=120, T_det=70, null_depth=NULL_DEPTH, dark_current=0.35),
 
     'Medium cold':     dict(D=0.15,  B=1.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Medium warm':     dict(D=0.15,  B=1.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
-
-    'Prototype cold':  dict(D=0.10,  B=1.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Prototype warm':  dict(D=0.10,  B=1.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
-    #'Prototype warm 5':  dict(D=0.10,  B=1.0,  T_mirror=145, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
-
-    'Small cold':      dict(D=0.075, B=0.75, T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Small warm':      dict(D=0.075, B=0.75, T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
-    #'Small warm 5':      dict(D=0.075, B=0.75, T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
-
-    'Short cold':      dict(D=0.05,  B=0.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Short warm':      dict(D=0.05,  B=0.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
-    #'Short hot 5':      dict(D=0.05,  B=0.5,  T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
-}
-'''
-SETUPS = {
-    'Large cold':      dict(D=0.20,  B=2.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Large warm':      dict(D=0.20,  B=2.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
-
-    'Medium cold':     dict(D=0.15,  B=1.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Medium warm':     dict(D=0.15,  B=1.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    'Medium warm':     dict(D=0.15,  B=1.5,  T_mirror=140, T_instr=120, T_det=70, null_depth=NULL_DEPTH, dark_current=0.35),
 
     'Prototype cold':  dict(D=0.1,  B=1.0,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Prototype warm':  dict(D=0.1,  B=1.0,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    'Prototype warm':  dict(D=0.1,  B=1.0,  T_mirror=140, T_instr=120, T_det=70, null_depth=NULL_DEPTH, dark_current=0.35),
     #'Prototype warm 5':  dict(D=0.10,  B=1.0,  T_mirror=145, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 
     'Small cold':      dict(D=0.075, B=0.75, T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Small warm':      dict(D=0.075, B=0.75, T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    'Small warm':      dict(D=0.075, B=0.75, T_mirror=140, T_instr=120, T_det=70, null_depth=NULL_DEPTH, dark_current=0.35),
     #'Small warm 5':      dict(D=0.075, B=0.75, T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 
     'Short cold':      dict(D=0.05,  B=0.5,  T_mirror=90, T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
-    'Short warm':      dict(D=0.05,  B=0.5,  T_mirror=140, T_instr=120, T_det=80, null_depth=NULL_DEPTH, dark_current=0.35),
+    'Short warm':      dict(D=0.05,  B=0.5,  T_mirror=140, T_instr=120, T_det=70, null_depth=NULL_DEPTH, dark_current=0.35),
     #'Short hot 5':      dict(D=0.05,  B=0.5,  T_mirror=190, T_instr=150, T_det=80, null_depth=NULL_DEPTH, dark_current=1.0),
 }
+
+'''
+
+# --- Grid over aperture diameter and baseline (one grid per thermal setup) ---
+GRID_D = [0.075, 0.10, 0.15, 0.20, 0.3]     # aperture diameters [m]
+GRID_B = [0.5, 0.75, 1.0, 1.5, 2.0]          # nulling baselines [m]
+GRID_THERMAL = {
+    #'cold': dict(T_mirror=90,  T_instr=80,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    'cold': dict(T_mirror=110,  T_instr=95,  T_det=40, null_depth=NULL_DEPTH, dark_current=0.035),
+    #'warm': dict(T_mirror=140, T_instr=120, T_det=70, null_depth=NULL_DEPTH, dark_current=0.35),
+    'warm': dict(T_mirror=130, T_instr=110, T_det=70, null_depth=NULL_DEPTH, dark_current=0.35),
+}
+GRID_SETUPS = {f'grid {thermal} D={d:g} B={b:g}': dict(D=d, B=b, **params)
+               for thermal, params in GRID_THERMAL.items() for d in GRID_D for b in GRID_B}
+
+# Subset of the grid used for the main comparison: D = 0.2 m, every baseline, cold and warm for each
+SETUPS = {f'grid {thermal} D=0.2 B={b:g}': GRID_SETUPS[f'grid {thermal} D=0.2 B={b:g}']
+          for b in sorted(GRID_B, reverse=True) for thermal in GRID_THERMAL}   # row 0 is plotted on top
+
+# Everything that gets simulated; setups with identical parameters reuse each other's cached realisations
+ALL_SETUPS = {**SETUPS, **GRID_SETUPS}
+#ALL_SETUPS = {**GRID_SETUPS}
 
 def load_target(name):
     # Executes the config and returns its star, exozodi, disks and the planet (with `sed_file` if given)
@@ -292,7 +299,8 @@ class FitStartModule(BaseModule):
         return r_planets_out,
 
 
-def prepare_setup(target, p):
+def prepare_setup(target, p, template=None):
+    # template: the template resource of an earlier call with the same setup p (it does not depend on the planet)
     pipeline = Pipeline(seed=None, gpu_index=GPU_INDEX, grid_size=GRID_SIZE)   
 
     # setup
@@ -302,10 +310,14 @@ def prepare_setup(target, p):
     quiet(pipeline.run)
     phringe = pipeline.get_resource('setup').phringe
 
-    # generate templates
-    module = TemplateGenerationModule(n_setup_in='setup', n_template_out='temp', fov=float(phringe.get_field_of_view().max()) / 2)
-    pipeline.add_module(module)
-    quiet(pipeline.run)
+    # generate templates (once per setup; the templates only depend on instrument and observation)
+    if template is None:
+        module = TemplateGenerationModule(n_setup_in='setup', n_template_out='temp', fov=float(phringe.get_field_of_view().max()) / 2)
+        pipeline.add_module(module)
+        quiet(pipeline.run)
+        template = pipeline.get_resource('temp')
+    else:
+        pipeline._resources['temp'] = template
 
     planet = pipeline.get_resource('params_init').collection[0].planet
     sed_true = planet.spectral_energy_distribution[:, 0, 0].cpu().numpy()
@@ -337,7 +349,7 @@ def prepare_setup(target, p):
     quiet(reference.set, make_scene(target, with_planet=False))
     background_counts = quiet(reference.get_counts, kernels=True).cpu().numpy()
 
-    return dict(pipeline=pipeline, model=model, sed_true=sed_true, x_true=x_true, y_true=y_true, jacobian=jacobian,
+    return dict(pipeline=pipeline, template=template, model=model, sed_true=sed_true, x_true=x_true, y_true=y_true, jacobian=jacobian,
                 sep_mas=float(np.hypot(x_true, y_true) * RAD_TO_MAS),
                 # channels in which the planet is inside the fibre field of view (outside: no signal at all)
                 in_fov=np.abs(jacobian[..., :n_wl]).sum(axis=(0, 1, 2)) > 0,
@@ -446,7 +458,7 @@ def run_realisation(prep, seed):
 
 
 def run_key(target, setup, seed):
-    return json.dumps(dict(target=target, setup=SETUPS[setup], seed=seed, t_obs=T_OBS, t_mod=T_MOD, dit=DIT,
+    return json.dumps(dict(target=target, setup=ALL_SETUPS[setup], seed=seed, t_obs=T_OBS, t_mod=T_MOD, dit=DIT,
                            grid_size=GRID_SIZE, version=4), sort_keys=True)
 
 
@@ -459,13 +471,17 @@ for target_name, target in LOADED.items():
             record = json.loads(line)
             done[record['key']] = record
 
-    for setup_name, params in SETUPS.items():
+# Setup-major: the templates are generated once per setup and shared by all planets
+for setup_name, params in ALL_SETUPS.items():
+    template = None
+    for target_name, target in LOADED.items():
         # The setup is prepared even if all realisations are on file: it gives the Fisher reference
-        prep = quiet(prepare_setup, target, params)
+        prep = quiet(prepare_setup, target, params, template)
+        template = prep['template']
         status = fov_status(prep)
         todo = [BASE_SEED + i for i in range(N_REALISATIONS)
                 if run_key(target_name, setup_name, BASE_SEED + i) not in done] if status == 'ok' else []
-        print(f"{target_name} / {setup_name}: separation {prep['sep_mas']:.0f} mas, {status}, "
+        print(f"{setup_name} / {target_name}: separation {prep['sep_mas']:.0f} mas, {status}, "
               f"var/mean = {prep['var_over_mean']:.2f}, {len(todo)} realisations to run")
         start = time.time()
         for i, seed in enumerate(todo, 1):
@@ -480,14 +496,14 @@ for target_name, target in LOADED.items():
         if todo:
             print()
 
-        # Keep only what the summary needs; the pipeline (templates, PHRINGE caches, data) is several 100 MB
+        # Keep only what the summary needs; the pipeline (data, PHRINGE caches) is several 100 MB
         PREP[target_name, setup_name] = dict(sed_true=prep['sed_true'], sep_mas=prep['sep_mas'], in_fov=prep['in_fov'],
                                              status=status, fisher=fisher_snr(prep))
         del prep
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-
+    del template
 
 
 def snr_from_q(q, n_wl):
@@ -588,6 +604,7 @@ sigma_snr = err_table.where(status_table == 'ok').astype(float).values
 detected = np.nan_to_num(values - SIGMA_SNR_DETECTION * sigma_snr, nan=0) >= SNR_DETECTION      # outside the FOV counts as not detected
 n_detected = detected.sum(axis=1)
 
+
 fig = plt.figure(figsize=( len(planets) + 4, 0.85 * len(names) + 2.6), layout='constrained')
 grid = fig.add_gridspec(2, 2, width_ratios=[0.5, len(planets)], height_ratios=[len(names), 0.5])
 ax_count, ax, cax = fig.add_subplot(grid[0, 0]), fig.add_subplot(grid[0, 1]), fig.add_subplot(grid[1, 1])
@@ -617,10 +634,11 @@ ax.set_yticks([])
 ax.xaxis.tick_top()
 
 # --- Detections per setup ---
-ax_count.imshow(n_detected[:, None], vmin=-0.5, vmax = len(planets) + 0.5, cmap='magma',  aspect='auto') # vmin=-0.5, vmax=len(planets) + 0.5,
+vmax = len(planets) - 5
+ax_count.imshow(n_detected[:, None], vmin=-0.5, vmax = vmax, cmap='magma',  aspect='auto') # vmin=-0.5, vmax=len(planets) + 0.5,
 for row, n in enumerate(n_detected):
     ax_count.text(0, row, f'{n} ', ha='center', va='center', fontsize=10, fontweight='bold',
-                  color='white' if n / len(planets) < 0.5 else 'black')
+                  color='white' if n / vmax < 0.5 else 'black')
 ax_count.set_xticks([0], [f'detected\nSNR ≥ {SNR_DETECTION:g}'], fontsize=9)
 ax_count.xaxis.tick_top()
 ax_count.set_yticks(range(len(names)), [SETUP_LABELS[n] for n in names], fontsize=7)
@@ -647,5 +665,36 @@ fig.suptitle(f'SNR, {CASE_LABELS[CASE]}, {ESTIMATE_LABELS[ESTIMATE]} ({N_REALISA
              f'fits that miss the planet count as SNR 0)\n'
              rf'cell: SNR $\pm$ scatter of a single observation, number of observations with SNR ≥ {SNR_DETECTION:g}',
              fontsize=10)
-fig.savefig(COMBINED_DIR / f'snr_heatmap_{CASE}_{ESTIMATE}.png')#, transparent=True)
+fig.savefig(COMBINED_DIR / f'snr_heatmap_{CASE}_{ESTIMATE}.png', transparent=True)
+plt.show()
+
+
+# =============== GRID: NUMBER OF DETECTED PLANETS vs BASELINE AND APERTURE =================
+# Same detection criterion as above: SNR - SIGMA_SNR_DETECTION * scatter >= SNR_DETECTION (outside the FOV: not detected)
+grid_rows = summary[(summary.case == CASE) & summary.setup.isin(GRID_SETUPS)].copy()
+grid_rows['scatter'] = grid_rows['SNR_scatter'] if ESTIMATE == 'SNR' else 0.0
+grid_rows['detected'] = (grid_rows.status == 'ok') & (
+    np.nan_to_num(grid_rows[ESTIMATE] - SIGMA_SNR_DETECTION * grid_rows['scatter'], nan=0) >= SNR_DETECTION)
+n_detected_grid = grid_rows.groupby('setup').detected.sum()
+
+fig, axes = plt.subplots(1, len(GRID_THERMAL), figsize=(5.2 * len(GRID_THERMAL) + 1, 4.6), layout='constrained',
+                         sharey=True)
+vmax = len(TARGETS)-5
+for ax, thermal in zip(np.atleast_1d(axes), GRID_THERMAL):
+    counts = np.array([[n_detected_grid[f'grid {thermal} D={d:g} B={b:g}'] for b in GRID_B] for d in GRID_D])
+    image = ax.imshow(counts, origin='lower', cmap='magma', vmin=0, vmax=vmax, aspect='auto')
+    for (row, col), n in np.ndenumerate(counts):
+        ax.text(col, row, f'{n:.0f}', ha='center', va='center', fontsize=11, fontweight='bold',
+                color='white' if n / vmax < 0.5 else 'black')
+    ax.set_xticks(range(len(GRID_B)), [f'{b:g}' for b in GRID_B])
+    ax.set_yticks(range(len(GRID_D)), [f'{d * 100:g}' for d in GRID_D])
+    ax.set_xlabel('nulling baseline B [m]')
+    p = GRID_THERMAL[thermal]
+    ax.set_title(f"{thermal} ({p['T_mirror']}/{p['T_instr']}/{p['T_det']} K, dark {p['dark_current']:g} e-/s/px)",
+                 fontsize=10)
+np.atleast_1d(axes)[0].set_ylabel('aperture diameter D [cm]')
+fig.colorbar(image, ax=axes, label=f'planets with SNR ≥ {SNR_DETECTION:g}')
+fig.suptitle(f'Detected planets after {T_OBS / 3600:g} h, {CASE_LABELS[CASE]}', #{ESTIMATE_LABELS[ESTIMATE]}',
+             fontsize=10)
+fig.savefig(COMBINED_DIR / f'detections_grid_{CASE}_{ESTIMATE}.png', transparent = True)
 plt.show()

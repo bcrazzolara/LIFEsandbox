@@ -77,7 +77,9 @@ bet_pic_b = Planet(
     inclination='88.993 deg',
     argument_of_periapsis='23.7 deg',
     raan='0 deg',  # not available from the catalogue -- review this
-    true_anomaly='0 deg',  # not available from the catalogue -- review this
+    # Separation variation, 2029-07-01 -> 2031-07-01 (model): STRONGLY varying (near edge-on i=89 deg, P ~ 23 yr: planet close to the star in projection): 2029-07 -> 2031-07 separation 187 -> 54 -> 83 mas
+    true_anomaly='240.6 deg',  # -> 55 mas on 2030-07-01 (whereistheplanet: 54 +- 13 mas, Lacour et al. 2021); the other branch (59.9 deg) has the wrong 2029-2031 trend
+    # separation changes a lot around Jul 2030: 120 (Jan 2030) -> 55 (Jul 2030) -> 14 mas (Jan 2031)
 )
 
 
@@ -102,7 +104,8 @@ bet_pic_c = Planet(
     inclination='88.93 deg',
     argument_of_periapsis='-114.9 deg',
     raan='0 deg',  # not available from the catalogue -- review this
-    true_anomaly='0 deg',  # not available from the catalogue -- review this
+    # Separation variation, 2029-07-01 -> 2031-07-01 (model): STRONGLY varying (P ~ 3.2 yr, e=0.31, near edge-on i=89 deg): 2029-07 -> 2031-07 separation 5 -> 143 -> 26 mas; whereistheplanet gives 30 -> 143 -> 17 mas
+    true_anomaly='147.7 deg',  # -> 143 mas on 2030-07-01 (whereistheplanet: 142 +- 6 mas, Lacour et al. 2021)
 )
 
 
@@ -125,6 +128,7 @@ bet_pic_d = Planet(
     inclination='89.0 deg',
     argument_of_periapsis='191.0 deg',
     raan='0 deg',  # not available from the catalogue -- review this
-    true_anomaly='0 deg',  # not available from the catalogue -- review this
+    # Separation variation, 2029-07-01 -> 2031-07-01 (model): weakly varying (P ~ 95 yr, but e=0.44 and edge-on): 2029-07 -> 2031-07 separation 753 -> 735 -> 699 mas
+    true_anomaly='0 deg',  # no observation on whereistheplanet, nu not constrained -- review this
 )
 '''
