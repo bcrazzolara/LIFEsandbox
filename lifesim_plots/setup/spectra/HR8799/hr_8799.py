@@ -49,7 +49,9 @@ hr_8799_b = Planet(
     eccentricity=0.0,  # not available from the catalogue -- review this
     raan='0 deg',  # not available from the catalogue -- review this
     argument_of_periapsis='0 deg',  # not available from the catalogue -- review this
-    true_anomaly='0 deg',  # not available from the catalogue -- review this
+    # Separation variation, 2029-07-01 -> 2031-07-01 (model): NOT varying (e=0, P ~ 440 yr, planet at its maximum projected separation)
+    true_anomaly='0 deg',  # NOT matched: whereistheplanet gives 1717 +- 3 mas on 2030-07-01, these elements only reach 1424-1649 mas (maximum, at nu=0; 4% off)
+    # separation nearly constant around Jul 2030: 1717 (Jan 2030) -> 1717 (Jul 2030) -> 1716 mas (Jan 2031)
 )
 
 
@@ -74,7 +76,9 @@ hr_8799_c = Planet(
     inclination='29.43 deg',
     raan='0 deg',  # not available from the catalogue -- review this
     argument_of_periapsis='0 deg',  # not available from the catalogue -- review this
-    true_anomaly='0 deg',  # not available from the catalogue -- review this
+    # Separation variation, 2029-07-01 -> 2031-07-01 (model): weakly varying (P ~ 185 yr): 2029-07 -> 2031-07 separation 951 -> 967 -> 982 mas
+    true_anomaly='132.0 deg',  # -> 967 mas on 2030-07-01 (whereistheplanet: 967 +- 1 mas, GRAVITY (unpublished))
+    # separation nearly constant around Jul 2030: 966 (Jan 2030) -> 967 (Jul 2030) -> 969 mas (Jan 2031)
 )
 
 
@@ -100,7 +104,9 @@ hr_8799_d = Planet(
     inclination='38.63 deg',
     raan='0 deg',  # not available from the catalogue -- review this
     argument_of_periapsis='0 deg',  # not available from the catalogue -- review this
-    true_anomaly='0 deg',  # not available from the catalogue -- review this
+    # Separation variation, 2029-07-01 -> 2031-07-01 (model): weakly varying (P ~ 93 yr, e=0.6): 2029-07 -> 2031-07 separation 720 -> 701 -> 680 mas
+    true_anomaly='213.4 deg',  # -> 701 mas on 2030-07-01 (whereistheplanet: 700 +- 4 mas, GRAVITY (unpublished)); branch chosen to match its decreasing 2029-2031 trend
+    # separation nearly constant around Jul 2030: 701 (Jan 2030) -> 700 (Jul 2030) -> 700 mas (Jan 2031)
 )
 
 
@@ -125,5 +131,7 @@ hr_8799_e = Planet(
     inclination='25.0 deg',
     raan='0 deg',  # not available from the catalogue -- review this
     argument_of_periapsis='0 deg',  # not available from the catalogue -- review this
-    true_anomaly='0 deg',  # not available from the catalogue -- review this
+    # Separation variation, 2029-07-01 -> 2031-07-01 (model): weakly varying (P ~ 52 yr): 2029-07 -> 2031-07 separation 414 -> 423 -> 431 mas
+    true_anomaly='140.0 deg',  # -> 423 mas on 2030-07-01 (whereistheplanet: 423 +- 2 mas, GRAVITY (unpublished)); branch chosen to match its increasing 2029-2031 trend
+    # separation nearly constant around Jul 2030: 421 (Jan 2030) -> 422 (Jul 2030) -> 425 mas (Jan 2031)
 )
